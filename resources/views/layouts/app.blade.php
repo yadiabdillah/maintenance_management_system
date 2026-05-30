@@ -8,7 +8,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-    
+
     <style>
         body {
             background-color: #f8f9fa;
@@ -49,7 +49,7 @@
             justify-content: space-between;
             align-items: center;
         }
-        
+
         /* Mobile Responsive Styles */
         @media (max-width: 768px) {
             .sidebar {
@@ -94,7 +94,7 @@
                 <i class="bi bi-x-lg fs-4"></i>
             </button>
         </div>
-        
+
         <div class="text-uppercase text-secondary small fw-bold mb-2 mt-2 px-2">Menu Utama</div>
         <ul class="nav flex-column mb-auto">
             <li class="nav-item">
@@ -103,8 +103,13 @@
                 </a>
             </li>
             <li class="nav-item">
-                <a href="#" class="nav-link">
+                <a href="{{ route('tickets.index') }}" class="nav-link {{ request()->routeIs('tickets.*') ? 'active' : '' }}">
                     <i class="bi bi-ticket-detailed me-2"></i> Tiket Perbaikan
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="{{ route('reports.index') }}" class="nav-link {{ request()->routeIs('reports.index') || request()->routeIs('reports.export.*') ? 'active' : '' }}">
+                    <i class="bi bi-file-earmark-bar-graph me-2"></i> Laporan Tiket
                 </a>
             </li>
         </ul>
@@ -125,12 +130,17 @@
                     <i class="bi bi-box-seam me-2"></i> Stok Sparepart
                 </a>
             </li>
+             <li class="nav-item">
+                <a href="{{ route('reports.sparepart.stock') }}" class="nav-link {{ request()->routeIs('reports.sparepart.*') ? 'active' : '' }}">
+                    <i class="bi bi-box-seam me-2"></i> Laporan Stok
+                </a>
+            </li>
         </ul>
-        
+
         <div class="text-uppercase text-secondary small fw-bold mb-2 mt-4 px-2">Sistem</div>
         <ul class="nav flex-column mb-auto">
             <li class="nav-item">
-                <a href="#" class="nav-link">
+                <a href="{{ route('users.index') }}" class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}">
                     <i class="bi bi-people me-2"></i> Manajemen Pengguna
                 </a>
             </li>
@@ -154,7 +164,7 @@
                 <h5 class="mb-0 text-dark d-none d-md-block">@yield('title', 'Dashboard')</h5>
                 <h5 class="mb-0 text-dark d-md-none fw-bold">MMS</h5>
             </div>
-            
+
             <div class="d-flex align-items-center">
                 <!-- Notifikasi -->
                 <a href="#" class="text-secondary me-4 position-relative">
@@ -163,7 +173,7 @@
                         <span class="visually-hidden">New alerts</span>
                     </span>
                 </a>
-                
+
                 <!-- Profile Dropdown -->
                 <div class="dropdown">
                     <a href="#" class="d-flex align-items-center text-dark text-decoration-none dropdown-toggle" id="dropdownUser" data-bs-toggle="dropdown" aria-expanded="false">
