@@ -16,22 +16,43 @@ Route::middleware('guest')->group(function () {
 
 // Authenticated Routes
 Route::middleware('auth')->group(function () {
-    Route::get('/dashboard', [\App\Http\Controllers\DashboardController::class, 'index'])->name('dashboard');
+    // Dashboard - All authenticated users
+    Route::get('/dashboard', [\App\Http\Controllers\DashboardController::class, 'index'])
+        ->name('dashboard');
 
-    Route::post('/machines/import', [\App\Http\Controllers\MachineController::class, 'import'])->name('machines.import');
-    Route::resource('machines', \App\Http\Controllers\MachineController::class);
+    // Master Data Mesin - Super Admin only
+    Route::post('/machines/import', [\App\Http\Controllers\MachineController::class, 'import'])
+        ->name('machines.import')
+        ->middleware('role:Super Admin');
+    Route::resource('machines', \App\Http\Controllers\MachineController::class)
+        ->middleware('role:Super Admin');
 
-    Route::post('/spareparts/{sparepart}/adjust', [\App\Http\Controllers\SparepartController::class, 'adjustStock'])->name('spareparts.adjust');
-    Route::resource('spareparts', \App\Http\Controllers\SparepartController::class);
+    // Sparepart - Operator & Super Admin only
+    Route::get('/spareparts/search', [\App\Http\Controllers\SparepartController::class, 'search'])
+        ->name('spareparts.search')
+        ->middleware('role:Operator,Super Admin');
+    Route::post('/spareparts/{sparepart}/adjust', [\App\Http\Controllers\SparepartController::class, 'adjustStock'])
+        ->name('spareparts.adjust')
+        ->middleware('role:Operator,Super Admin');
+    Route::resource('spareparts', \App\Http\Controllers\SparepartController::class)
+        ->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy'])
+        ->middleware('role:Operator,Super Admin');
 
-    Route::resource('users', \App\Http\Controllers\UserController::class);
+    // Manajemen Pengguna - Super Admin only
+    Route::resource('users', \App\Http\Controllers\UserController::class)
+        ->middleware('role:Super Admin');
 
-    // Ticket routes with custom assign mechanic routes
-    Route::get('/tickets/{ticket}/assign', [\App\Http\Controllers\TicketController::class, 'assignForm'])->name('tickets.assign.form');
-    Route::post('/tickets/{ticket}/assign', [\App\Http\Controllers\TicketController::class, 'assign'])->name('tickets.assign');
-    Route::resource('tickets', \App\Http\Controllers\TicketController::class);
+    // Ticket routes
+    Route::get('/tickets/{ticket}/assign', [\App\Http\Controllers\TicketController::class, 'assignForm'])
+        ->name('tickets.assign.form')
+        ->middleware('role:Supervisor,Super Admin');
+    Route::post('/tickets/{ticket}/assign', [\App\Http\Controllers\TicketController::class, 'assign'])
+        ->name('tickets.assign')
+        ->middleware('role:Supervisor,Super Admin');
+    Route::resource('tickets', \App\Http\Controllers\TicketController::class)
+        ->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']);
 
-    // Profile routes
+    // Profile routes - All authenticated users
     Route::prefix('profile')->name('profile.')->group(function () {
         Route::get('/', [\App\Http\Controllers\ProfileController::class, 'show'])->name('show');
         Route::get('/edit', [\App\Http\Controllers\ProfileController::class, 'edit'])->name('edit');
@@ -43,8 +64,8 @@ Route::middleware('auth')->group(function () {
         Route::delete('/photo/delete', [\App\Http\Controllers\ProfileController::class, 'deletePhoto'])->name('photo.delete');
     });
 
-    // Report routes
-    Route::prefix('reports')->name('reports.')->group(function () {
+    // Report routes - Supervisor & Super Admin only
+    Route::prefix('reports')->name('reports.')->middleware('role:Supervisor,Super Admin')->group(function () {
         Route::get('/', [\App\Http\Controllers\ReportController::class, 'index'])->name('index');
         Route::get('/export-csv', [\App\Http\Controllers\ReportController::class, 'exportCsv'])->name('export.csv');
         Route::get('/export-pdf', [\App\Http\Controllers\ReportController::class, 'exportPdf'])->name('export.pdf');

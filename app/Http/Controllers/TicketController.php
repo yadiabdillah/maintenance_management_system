@@ -105,6 +105,9 @@ class TicketController extends Controller
     {
         $user = Auth::user();
 
+        // Load spareparts with pivot data
+        $ticket->load('spareparts');
+
         // Admin/Supervisor always allowed
         if (in_array($user->role, ['Super Admin', 'Supervisor'])) {
             $spareparts = Sparepart::orderBy('name')->get();
@@ -176,29 +179,33 @@ class TicketController extends Controller
         }
 
         // Use DB transaction for sparepart stock management
-        DB::transaction(function () use ($request, $ticket, $updateData) {
-            $ticket->update($updateData);
+        try {
+            DB::transaction(function () use ($request, $ticket, $updateData) {
+                $ticket->update($updateData);
 
-            // Process spareparts usage
-            if ($request->filled('spareparts')) {
-                $syncData = [];
+                // Process spareparts usage
+                if ($request->filled('spareparts')) {
+                    $syncData = [];
 
-                foreach ($request->spareparts as $index => $sparepartId) {
-                    $qty = $request->qtys[$index] ?? 1;
+                    foreach ($request->spareparts as $index => $sparepartId) {
+                        $qty = $request->qtys[$index] ?? 1;
 
-                    // Deduct stock
-                    $sparepart = Sparepart::findOrFail($sparepartId);
-                    if ($sparepart->stock < $qty) {
-                        throw new \Exception("Stok {$sparepart->name} tidak mencukupi. Stok tersedia: {$sparepart->stock}, dibutuhkan: {$qty}");
+                        // Deduct stock
+                        $sparepart = Sparepart::findOrFail($sparepartId);
+                        if ($sparepart->stock < $qty) {
+                            throw new \Exception("Stok {$sparepart->name} tidak mencukupi. Stok tersedia: {$sparepart->stock}, dibutuhkan: {$qty}");
+                        }
+
+                        $sparepart->decrement('stock', $qty);
+                        $syncData[$sparepartId] = ['qty' => $qty];
                     }
 
-                    $sparepart->decrement('stock', $qty);
-                    $syncData[$sparepartId] = ['qty' => $qty];
+                    $ticket->spareparts()->sync($syncData);
                 }
-
-                $ticket->spareparts()->sync($syncData);
-            }
-        });
+            });
+        } catch (\Exception $e) {
+            return back()->withInput()->with('error', $e->getMessage());
+        }
 
         return redirect()->route('tickets.show', $ticket->id)->with('success', 'Status tiket berhasil diperbarui.');
     }

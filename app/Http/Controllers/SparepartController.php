@@ -107,6 +107,47 @@ class SparepartController extends Controller
     }
 
     /**
+     * Search spareparts for Select2 AJAX.
+     */
+    public function search(Request $request)
+    {
+        $search = $request->input('term', '');
+        $page = $request->input('page', 1);
+        $perPage = 10;
+
+        $query = Sparepart::query();
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('sku', 'like', "%{$search}%");
+            });
+        }
+
+        $total = $query->count();
+        $spareparts = $query->orderBy('name')
+            ->offset(($page - 1) * $perPage)
+            ->limit($perPage)
+            ->get();
+
+        $results = $spareparts->map(function ($sp) {
+            return [
+                'id' => $sp->id,
+                'text' => "{$sp->name} ({$sp->sku})",
+                'stock' => $sp->stock,
+                'sku' => $sp->sku,
+            ];
+        });
+
+        return response()->json([
+            'results' => $results,
+            'pagination' => [
+                'more' => ($page * $perPage) < $total,
+            ],
+        ]);
+    }
+
+    /**
      * Record stock transaction (IN or OUT)
      */
     public function adjustStock(Request $request, Sparepart $sparepart)

@@ -255,6 +255,14 @@
                 </tbody>
             </table>
         </div>
+        @if($machines->hasPages())
+        <div class="card-footer bg-white border-top py-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <span class="text-muted small">Menampilkan {{ $machines->firstItem() }} - {{ $machines->lastItem() }} dari {{ $machines->total() }} mesin</span>
+                <div>{{ $machines->links() }}</div>
+            </div>
+        </div>
+        @endif
     </div>
 </div>
 @endsection

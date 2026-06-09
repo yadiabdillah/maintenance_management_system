@@ -243,6 +243,14 @@
                 </tbody>
             </table>
         </div>
+        @if($tickets->hasPages())
+        <div class="card-footer bg-white border-top py-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <span class="text-muted small">Menampilkan {{ $tickets->firstItem() }} - {{ $tickets->lastItem() }} dari {{ $tickets->total() }} tiket</span>
+                <div>{{ $tickets->links() }}</div>
+            </div>
+        </div>
+        @endif
     </div>
 </div>
 @endsection

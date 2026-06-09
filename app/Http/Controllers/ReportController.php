@@ -41,14 +41,16 @@ class ReportController extends Controller
             $query->where('status', $request->status);
         }
 
-        $tickets = $query->latest()->get();
+        // Summary from all filtered records (before pagination)
+        $summaryQuery = clone $query;
+        $totalTickets = $summaryQuery->count();
+        $totalOpen = (clone $query)->where('status', 'open')->count();
+        $totalInProgress = (clone $query)->where('status', 'in_progress')->count();
+        $totalResolved = (clone $query)->where('status', 'resolved')->count();
+        $totalClosed = (clone $query)->where('status', 'closed')->count();
 
-        // Summary
-        $totalTickets = $tickets->count();
-        $totalOpen = $tickets->where('status', 'open')->count();
-        $totalInProgress = $tickets->where('status', 'in_progress')->count();
-        $totalResolved = $tickets->where('status', 'resolved')->count();
-        $totalClosed = $tickets->where('status', 'closed')->count();
+        // Paginated results
+        $tickets = $query->latest()->paginate(15)->withQueryString();
 
         return view('reports.index', compact(
             'mechanics', 'tickets',
@@ -162,12 +164,12 @@ class ReportController extends Controller
             });
         }
 
-        $spareparts = $query->orderBy('name')->get();
-        $totalItems = $spareparts->count();
-        $totalStock = $spareparts->sum('stock');
-        $lowStock = $spareparts->where('stock', '<=', 'min_stock')->count();
-        $totalValue = $spareparts->sum(function ($s) {
-            // Ambil rata-rata harga dari transaksi IN terakhir
+        // Summary from all records (before pagination)
+        $summaryQuery = clone $query;
+        $totalItems = $summaryQuery->count();
+        $totalStock = (clone $query)->sum('stock');
+        $lowStock = (clone $query)->whereColumn('stock', '<=', 'min_stock')->count();
+        $totalValue = Sparepart::get()->sum(function ($s) {
             $lastPrice = SparepartTransaction::where('sparepart_id', $s->id)
                 ->where('type', 'IN')
                 ->whereNotNull('unit_price')
@@ -176,12 +178,15 @@ class ReportController extends Controller
             return $s->stock * ($lastPrice ?? 0);
         });
 
+        // Paginated results
+        $spareparts = $query->orderBy('name')->paginate(15)->withQueryString();
+
         // Filter by date range for transaction summary
         $startDate = $request->filled('start_date') ? $request->start_date : now()->startOfMonth()->format('Y-m-d');
         $endDate = $request->filled('end_date') ? $request->end_date : now()->format('Y-m-d');
         $filterType = $request->filter_type ?? 'daily'; // daily or monthly
 
-        // Get transaction summary per sparepart
+        // Get transaction summary per sparepart (only for current page)
         $transactionSummary = [];
         foreach ($spareparts as $sp) {
             $txQuery = SparepartTransaction::where('sparepart_id', $sp->id)
@@ -353,17 +358,18 @@ class ReportController extends Controller
             $query->where('loc_code', $request->location);
         }
 
-        $machines = $query->orderBy('fa_tag_no')->get();
-
-        // Summary statistics
-        $totalMachines = $machines->count();
-        $goodCondition = $machines->where('condition_status', 'Good')->count();
-        $needsRepair = $machines->where('condition_status', 'Needs Repair')->count();
-        $repairing = $machines->where('condition_status', 'Repairing')->count();
-        $broken = $machines->where('condition_status', 'Broken')->count();
-        $totalAcqCost = $machines->sum(function ($m) {
+        // Summary from all records (before pagination)
+        $totalMachines = (clone $query)->count();
+        $goodCondition = (clone $query)->where('condition_status', 'Good')->count();
+        $needsRepair = (clone $query)->where('condition_status', 'Needs Repair')->count();
+        $repairing = (clone $query)->where('condition_status', 'Repairing')->count();
+        $broken = (clone $query)->where('condition_status', 'Broken')->count();
+        $totalAcqCost = (clone $query)->get()->sum(function ($m) {
             return (float) str_replace(['.', ','], ['', '.'], $m->acq_cost ?? 0);
         });
+
+        // Paginated results
+        $machines = $query->orderBy('fa_tag_no')->paginate(15)->withQueryString();
 
         // Get unique sections and locations for filter dropdowns
         $sections = Machine::whereNotNull('sect_code')->where('sect_code', '!=', '')
