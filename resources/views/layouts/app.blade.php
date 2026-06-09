@@ -112,6 +112,11 @@
                     <i class="bi bi-file-earmark-bar-graph me-2"></i> Laporan Tiket
                 </a>
             </li>
+            <li class="nav-item">
+                <a href="{{ route('reports.machine.data') }}" class="nav-link {{ request()->routeIs('reports.machine.*') ? 'active' : '' }}">
+                    <i class="bi bi-cpu me-2"></i> Laporan Data Mesin
+                </a>
+            </li>
         </ul>
 
         <div class="text-uppercase text-secondary small fw-bold mb-2 mt-4 px-2">Master Data</div>
@@ -177,15 +182,19 @@
                 <!-- Profile Dropdown -->
                 <div class="dropdown">
                     <a href="#" class="d-flex align-items-center text-dark text-decoration-none dropdown-toggle" id="dropdownUser" data-bs-toggle="dropdown" aria-expanded="false">
-                        <img src="https://ui-avatars.com/api/?name={{ urlencode(Auth::user()->name) }}&background=0D8ABC&color=fff" alt="" width="35" height="35" class="rounded-circle me-2 border">
+                        @if(Auth::user()->avatar)
+                            <img src="{{ asset('storage/avatars/' . Auth::user()->avatar) }}" alt="" width="35" height="35" class="rounded-circle me-2 border" style="object-fit: cover;">
+                        @else
+                            <img src="https://ui-avatars.com/api/?name={{ urlencode(Auth::user()->name) }}&background=0D8ABC&color=fff" alt="" width="35" height="35" class="rounded-circle me-2 border">
+                        @endif
                         <div class="d-none d-md-block text-start">
                             <strong class="d-block lh-1">{{ Auth::user()->name }}</strong>
-                            <small class="text-muted" style="font-size: 0.75rem;">Super Admin</small>
+                            <small class="text-muted" style="font-size: 0.75rem;">{{ Auth::user()->role }}</small>
                         </div>
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end shadow mt-2" aria-labelledby="dropdownUser">
-                        <li><a class="dropdown-item" href="#"><i class="bi bi-person me-2"></i> Profil Saya</a></li>
-                        <li><a class="dropdown-item" href="#"><i class="bi bi-shield-lock me-2"></i> Ganti Password</a></li>
+                        <li><a class="dropdown-item" href="{{ route('profile.show') }}"><i class="bi bi-person me-2"></i> Profil Saya</a></li>
+                        <li><a class="dropdown-item" href="{{ route('profile.password') }}"><i class="bi bi-shield-lock me-2"></i> Ganti Password</a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li>
                             <form method="POST" action="{{ route('logout') }}">

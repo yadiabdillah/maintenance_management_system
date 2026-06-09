@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Machine;
 use App\Models\Sparepart;
 use App\Models\SparepartTransaction;
 use App\Models\Ticket;
@@ -313,6 +314,194 @@ class ReportController extends Controller
         $pdf->setPaper('A4', 'landscape');
 
         return $pdf->download('laporan_stok_sparepart_' . now()->format('Ymd_His') . '.pdf');
+    }
+
+    // =====================
+    // MACHINE DATA REPORT
+    // =====================
+
+    /**
+     * Laporan data mesin dengan filter pencarian, kondisi, section, lokasi.
+     */
+    public function machineData(Request $request)
+    {
+        $query = Machine::query();
+
+        // Filter pencarian
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('fa_tag_no', 'like', "%{$search}%")
+                  ->orWhere('fa_desc', 'like', "%{$search}%")
+                  ->orWhere('serial_number', 'like', "%{$search}%")
+                  ->orWhere('fa_sub_desc', 'like', "%{$search}%");
+            });
+        }
+
+        // Filter by condition status
+        if ($request->filled('condition') && $request->condition !== 'all') {
+            $query->where('condition_status', $request->condition);
+        }
+
+        // Filter by section
+        if ($request->filled('section') && $request->section !== 'all') {
+            $query->where('sect_code', $request->section);
+        }
+
+        // Filter by location
+        if ($request->filled('location') && $request->location !== 'all') {
+            $query->where('loc_code', $request->location);
+        }
+
+        $machines = $query->orderBy('fa_tag_no')->get();
+
+        // Summary statistics
+        $totalMachines = $machines->count();
+        $goodCondition = $machines->where('condition_status', 'Good')->count();
+        $needsRepair = $machines->where('condition_status', 'Needs Repair')->count();
+        $repairing = $machines->where('condition_status', 'Repairing')->count();
+        $broken = $machines->where('condition_status', 'Broken')->count();
+        $totalAcqCost = $machines->sum(function ($m) {
+            return (float) str_replace(['.', ','], ['', '.'], $m->acq_cost ?? 0);
+        });
+
+        // Get unique sections and locations for filter dropdowns
+        $sections = Machine::whereNotNull('sect_code')->where('sect_code', '!=', '')
+            ->distinct()->pluck('sect_code')->sort()->values();
+        $locations = Machine::whereNotNull('loc_code')->where('loc_code', '!=', '')
+            ->distinct()->pluck('loc_code')->sort()->values();
+
+        return view('reports.machine-data', compact(
+            'machines', 'totalMachines', 'goodCondition', 'needsRepair',
+            'repairing', 'broken', 'totalAcqCost', 'sections', 'locations'
+        ));
+    }
+
+    /**
+     * Export laporan data mesin ke CSV.
+     */
+    public function machineDataCsv(Request $request)
+    {
+        $machines = $this->getFilteredMachines($request);
+
+        $filename = 'laporan_data_mesin_' . now()->format('Ymd_His') . '.csv';
+
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"$filename\"",
+            'Pragma' => 'no-cache',
+            'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
+            'Expires' => '0',
+        ];
+
+        $callback = function () use ($machines) {
+            $handle = fopen('php://output', 'w');
+            fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
+            fputcsv($handle, [
+                'No',
+                'FA Tag No',
+                'Deskripsi Mesin',
+                'Sub Deskripsi',
+                'Serial Number',
+                'Section',
+                'Sub Section',
+                'Lokasi',
+                'Line',
+                'Kondisi',
+                'Supplier',
+                'Tanggal Perolehan',
+                'Biaya Perolehan',
+                'Unit',
+                'Dept',
+                'Onsite',
+                'Assignee',
+                'Keterangan',
+            ]);
+
+            $no = 1;
+            foreach ($machines as $m) {
+                fputcsv($handle, [
+                    $no++,
+                    $m->fa_tag_no,
+                    $m->fa_desc,
+                    $m->fa_sub_desc,
+                    $m->serial_number,
+                    $m->sect_code,
+                    $m->sub_sect_code,
+                    $m->loc_code,
+                    $m->line_code,
+                    $m->condition_status,
+                    $m->supp_name,
+                    $m->acq_date,
+                    $m->acq_cost,
+                    $m->fa_unit,
+                    $m->dept_code,
+                    $m->onsite,
+                    $m->assignee,
+                    $m->remark,
+                ]);
+            }
+
+            fclose($handle);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    /**
+     * Export laporan data mesin ke PDF.
+     */
+    public function machineDataPdf(Request $request)
+    {
+        $machines = $this->getFilteredMachines($request);
+
+        $totalMachines = $machines->count();
+        $goodCondition = $machines->where('condition_status', 'Good')->count();
+        $needsRepair = $machines->where('condition_status', 'Needs Repair')->count();
+        $repairing = $machines->where('condition_status', 'Repairing')->count();
+        $broken = $machines->where('condition_status', 'Broken')->count();
+
+        $pdf = Pdf::loadView('reports.machine-data-pdf', compact(
+            'machines', 'totalMachines', 'goodCondition', 'needsRepair',
+            'repairing', 'broken'
+        ));
+
+        $pdf->setPaper('A4', 'landscape');
+
+        return $pdf->download('laporan_data_mesin_' . now()->format('Ymd_His') . '.pdf');
+    }
+
+    /**
+     * Get filtered machines based on request parameters.
+     */
+    private function getFilteredMachines(Request $request)
+    {
+        $query = Machine::query();
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('fa_tag_no', 'like', "%{$search}%")
+                  ->orWhere('fa_desc', 'like', "%{$search}%")
+                  ->orWhere('serial_number', 'like', "%{$search}%")
+                  ->orWhere('fa_sub_desc', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('condition') && $request->condition !== 'all') {
+            $query->where('condition_status', $request->condition);
+        }
+
+        if ($request->filled('section') && $request->section !== 'all') {
+            $query->where('sect_code', $request->section);
+        }
+
+        if ($request->filled('location') && $request->location !== 'all') {
+            $query->where('loc_code', $request->location);
+        }
+
+        return $query->orderBy('fa_tag_no')->get();
     }
 
     private function getFilteredTickets(Request $request)
