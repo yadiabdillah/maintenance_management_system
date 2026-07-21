@@ -10,10 +10,12 @@ class ExampleTest extends TestCase
     /**
      * A basic test example.
      */
-    public function test_the_application_returns_a_successful_response(): void
+    public function test_the_root_route_redirects_to_dashboard(): void
     {
         $response = $this->get('/');
 
-        $response->assertStatus(200);
+        // The root route redirects to the dashboard route,
+        // which itself requires authentication.
+        $response->assertRedirect(route('dashboard'));
     }
 }
